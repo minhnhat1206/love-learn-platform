@@ -9,8 +9,7 @@ export const PresentContinuousLesson: LessonContent = {
         category: 'Grammar',
         estimatedTime: 5,
         tags: ['Basic', 'Verbs', 'Continuous'],
-        order: 6, // Wait, Present Simple is 4, this should be 5? Or swap? Actually user requested Lesson 6. Past Simple is probably 5. Let's check.
-        // PresentSimple.tsx says order: 4. PastSimple.tsx says... wait, let's just use 6.
+        order: 6,
     },
     theory: `
     <div class="space-y-10 text-gray-700 pb-8 px-1">
