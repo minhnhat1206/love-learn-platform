@@ -11,6 +11,23 @@ export const getUserId = (): string => {
 const USER_ID = getUserId();
 const STORAGE_KEY = `love_learn_english_db_${USER_ID}`;
 
+// Helper: Get local YYYY-MM-DD
+export const getLocalISODate = (): string => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+  return localDate.toISOString().split('T')[0];
+};
+
+// Helper: Get Yesterday's local YYYY-MM-DD
+const getYesterdayISODate = (): string => {
+  const date = new Date();
+  date.setDate(date.getDate() - 1);
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+  return localDate.toISOString().split('T')[0];
+};
+
 const INITIAL_STATE: AppState = {
   userId: USER_ID,
   user: {
@@ -62,7 +79,22 @@ export const getAppState = (): AppState => {
   if (!memoryState.rewards) memoryState.rewards = INITIAL_STATE.rewards;
   if (!memoryState.settings) memoryState.settings = INITIAL_STATE.settings;
 
+  // Validate streak on every load
+  validateStreak(memoryState);
+
   return memoryState!;
+};
+
+// Resets streak if user missed a day
+export const validateStreak = (state: AppState) => {
+  const today = getLocalISODate();
+  const yesterday = getYesterdayISODate();
+  const { lastStudyDate } = state.user;
+
+  if (lastStudyDate && lastStudyDate !== today && lastStudyDate !== yesterday) {
+    // If last study date is neither today nor yesterday, streak is broken
+    state.user.streakDays = 0;
+  }
 };
 
 export const initDatabase = async () => {
@@ -81,6 +113,7 @@ export const initDatabase = async () => {
     if (!memoryState.rewards || memoryState.rewards.length === 0) memoryState.rewards = INITIAL_STATE.rewards;
     if (!memoryState.settings) memoryState.settings = INITIAL_STATE.settings;
 
+    validateStreak(memoryState);
     saveAppState(memoryState!, false);
   } else {
     console.log(`Using Local Storage for ${USER_ID}`);
@@ -112,7 +145,8 @@ export const updateUserStats = (
   pointsEarned: number = 0
 ) => {
   const state = getAppState();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalISODate();
+  const yesterday = getYesterdayISODate();
 
   // Update Daily Stats
   let todayStat = state.history.find(h => h.date === today);
@@ -133,18 +167,12 @@ export const updateUserStats = (
 
   // Streak Logic
   if (state.user.lastStudyDate !== today) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-    if (state.user.lastStudyDate === yesterdayStr) {
+    if (state.user.lastStudyDate === yesterday) {
+      // Studied yesterday, increment streak
       state.user.streakDays += 1;
     } else {
-      if (state.user.lastStudyDate && state.user.lastStudyDate !== today) {
-        state.user.streakDays = 1;
-      } else if (!state.user.lastStudyDate) {
-        state.user.streakDays = 1;
-      }
+      // Missed more than 1 day or first time studying
+      state.user.streakDays = 1;
     }
     state.user.lastStudyDate = today;
   }
